@@ -1,27 +1,66 @@
-﻿// Mostra o formulário de cadastro
+﻿// cria/garante container de mensagem abaixo do botão dentro do form
+function ensureMessageContainer(formId, containerId) {
+  if (document.getElementById(containerId)) return;
+  const form = document.getElementById(formId);
+  if (!form) return;
+  const msg = document.createElement('div');
+  msg.id = containerId;
+  msg.style.marginTop = '10px';
+  msg.style.fontSize = '14px';
+  msg.style.display = 'none';
+  form.appendChild(msg);
+}
+
+// mostra mensagem em um dos formulários ('login' ou 'cadastro')
+function showFormMessage(formType, message, isError = true, autoHide = 0) {
+  const formId = formType === 'login' ? 'loginForm' : 'cadastroForm';
+  const containerId = formType === 'login' ? 'loginMessage' : 'cadastroMessage';
+  ensureMessageContainer(formId, containerId);
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerText = message;
+  el.style.color = isError ? '#c00' : '#0a0';
+  el.style.display = 'block';
+  if (autoHide > 0) {
+    setTimeout(() => {
+      el.style.display = 'none';
+    }, autoHide);
+  }
+}
+
+function hideFormMessage(formType) {
+  const containerId = formType === 'login' ? 'loginMessage' : 'cadastroMessage';
+  const el = document.getElementById(containerId);
+  if (el) el.style.display = 'none';
+}
+
+// Atualiza mostrarCadastro / mostrarLogin para limpar mensagens ao alternar
 function mostrarCadastro() {
   document.getElementById("loginForm").style.display = "none";
   document.getElementById("cadastroForm").style.display = "block";
   document.getElementById("formTitle").innerText = "Cadastro";
+  hideFormMessage('login');
+  hideFormMessage('cadastro');
 }
 
-// Mostra o formulário de login
 function mostrarLogin() {
   document.getElementById("loginForm").style.display = "block";
   document.getElementById("cadastroForm").style.display = "none";
   document.getElementById("formTitle").innerText = "Login";
+  hideFormMessage('login');
+  hideFormMessage('cadastro');
 }
 
+   
 // Função de cadastro
 function cadastrar() {
   const nome = document.getElementById('nomeCadastro').value.trim();
   const email = document.getElementById('emailCadastro').value.trim();
   const senha = document.getElementById('senhaCadastro').value.trim();
-  const tipo = document.getElementById('tipoUsuario').value;
   
   // Validação básica
   if (!nome || !email || !senha) {
-    alert("Por favor, preencha todos os campos para se cadastrar!");
+    showFormMessage('cadastro', "Por favor, preencha todos os campos.", true);
     return;
   }
 
@@ -29,25 +68,34 @@ function cadastrar() {
 
   // Verifica se o e-mail já foi cadastrado
   if (usuarios.find(u => u.email === email)) {
-    alert("Este e-mail já está cadastrado! Faça login ou use outro endereço.");
+    showFormMessage('cadastro', "Este e-mail já está cadastrado.", true);
     return;
   }
 
   // Adiciona o novo usuário
-  usuarios.push({ nome, email, senha, tipo });
+  usuarios.push({ nome, email, senha });
   localStorage.setItem('usuarios', JSON.stringify(usuarios));
 
-  alert("✨ Cadastro realizado com sucesso! Agora faça login para continuar.");
-  mostrarLogin();
+  showFormMessage('cadastro', "Cadastro realizado com sucesso.", false, 1400);
+
+  // Limpa campos e volta para login após timeout
+  document.getElementById('nomeCadastro').value = '';
+  document.getElementById('emailCadastro').value = '';
+  document.getElementById('senhaCadastro').value = '';
+  setTimeout(() => {
+    mostrarLogin();
+  }, 1400);
 }
 
 // Função de login
+document.getElementById('loginButton').addEventListener('click', login);
+
 function login() {
   const email = document.getElementById('emailLogin').value.trim();
   const senha = document.getElementById('senhaLogin').value.trim();
 
   if (!email || !senha) {
-    alert("Digite seu e-mail e senha para entrar.");
+    showFormMessage('login', "Digite seu e-mail e senha para entrar.", true);
     return;
   }
 
@@ -56,44 +104,10 @@ function login() {
 
   if (user) {
     localStorage.setItem('usuarioLogado', JSON.stringify(user));
-    alert(`Bem-vindo(a), ${user.nome}! 💖`);
-    
-    // Redirecionamento conforme tipo
-    if (user.tipo === "admin") {
-      window.location.href = "index.html";
-    } else {
-      window.location.href = "index.html";
-    }
+    showFormMessage('login', "Login realizado. Redirecionando...", false);
+    mostrarLogin(); // Redireciona para o login
+    window.location.href = 'index.html';
   } else {
-    alert("❌ Usuário ou senha inválidos. Tente novamente.");
+    showFormMessage('login', "E-mail ou senha incorretos.", true);
   }
-}
-
-// Login com Google
-function handleCredentialResponse(response) {
-  console.log("Credencial do Google:", response.credential);
-  const user = parseJwt(response.credential);
-  
-  localStorage.setItem('usuarioLogado', JSON.stringify({
-    nome: user.name,
-    email: user.email,
-    tipo: "cliente",
-    google: true
-  }));
-
-  alert(`💅 Login com Google bem-sucedido! Seja bem-vinda, ${user.name}.`);
-  window.location.href = "index.html";
-}
-
-// Decodifica o token JWT do Google
-function parseJwt(token) {
-  const base64Url = token.split('.')[1];
-  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  const jsonPayload = decodeURIComponent(
-    atob(base64)
-      .split('')
-      .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-      .join('')
-  );
-  return JSON.parse(jsonPayload);
 }
